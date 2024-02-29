@@ -10,6 +10,7 @@ from .alignment import align, load_align_model
 from .asr import load_model
 from .audio import load_audio
 from .diarize import DiarizationPipeline, assign_word_speakers
+from .icepunk import IcePunk
 from .utils import (LANGUAGES, TO_LANGUAGE_CODE, get_writer, optional_float,
                     optional_int, str2bool)
 
@@ -180,6 +181,19 @@ def cli():
     del model
     gc.collect()
     torch.cuda.empty_cache()
+
+    # Part 1.5: Postprocess
+    for result in results:
+        all_text = " ".join([segment['text'] for segment in result[0]['segments']])
+        postprocessed_text = IcePunk().postprocess(all_text)
+        start = 0
+        for segment in result[0]['segments']:
+            length = len(segment["text"])
+            end = start + length
+            while len(postprocessed_text) > end and postprocessed_text[end] != " ":
+                end = end + 1
+            segment["text"] = postprocessed_text[start:end].strip()
+            start = end
 
     # Part 2: Align Loop
     if not no_align:
